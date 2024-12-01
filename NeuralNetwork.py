@@ -1,6 +1,8 @@
 import numpy as np
 from typing import Sequence, Callable, Tuple
 
+# Test comment
+
 # Define activation functions.
 def sigmoid(x: Sequence):
     return 1 / (1 + np.exp(-x))
