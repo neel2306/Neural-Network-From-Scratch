@@ -42,6 +42,7 @@ class Layer:
         # Define layer input and output
         self.input = None
         self.output = None
+        self.Z_cache = None
         
         # Initialise weights using He Initialisation
         self.weights = np.random.randn(num_neurons, num_inputs) * np.sqrt(1 / num_inputs)
@@ -75,11 +76,11 @@ class NeuralNetwork:
                 raise ValueError("No input size passed")
 
             # Add the layer to the list.
-            self.layers.append(Layer(input_size, num_neurons, activation))
+            self.layers.append(Layer(input_size, num_neurons, activation)) 
         
         else:
             # Get previous layers neuron number
-            previous_layer_neurons : int = self.layers[-1].weights.shape[1]
+            previous_layer_neurons : int = self.layers[-1].weights.shape[0]
             self.layers.append(Layer(previous_layer_neurons, num_neurons, activation))
     
     def forward_propagation(self, X: Sequence) -> None:
@@ -90,8 +91,11 @@ class NeuralNetwork:
             layer.input = input_
             
             # Compute the z and activation
-            z = np.dot(input_, layer.weights) + layer.bias
+            z = np.dot(layer.weights, input_) + layer.bias
             layer.output = layer.activation_function(z)
+            
+            # Add the Z cache.
+            layer.Z_cache = z
             
             # Define input for the next layer
             input_ = layer.output
@@ -100,20 +104,19 @@ class NeuralNetwork:
     
     def backward_propagation(self, X: Sequence, y: Sequence, learning_rate: float) -> None:
         # Define some parameters first.
-        num_examples = y.shape[0] # Can also use X.shape[1]
+        num_examples = X.shape[1] # Can also use X.shape[1]
         last_layer = self.layers[-1]
-        loss_gradient = cross_entropy_derivative(y_pred=last_layer.output, y=y)
+        dA = cross_entropy_derivative(y_pred=last_layer.output, y=y)
         
         # Gradient descent algorithm.
         for l in reversed(len(self.layers)):
             layer = self.layers[l]
-            dZ = loss_gradient
-            dZ = dZ * layer.activation_function_derivative(layer.output)
-            dW = np.dot(layer.input.T, dZ) / num_examples
-            dB = np.sum(dZ, axis=1, keepdims=True)
+            dZ = dA * layer.activation_function_derivative(layer.Z_cache)
+            dW = np.dot(dZ, layer.input.T) / num_examples
+            dB = np.sum(dZ, axis=1, keepdims=True) / num_examples
             
             # Compute new loss.
-            loss_gradient = np.dot(dZ, layer.weights.T)
+            dA = np.dot(layer.weights.T, dZ)
             
             # Update the weights and biases.
             layer.weights -= learning_rate * dW
